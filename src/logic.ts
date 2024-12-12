@@ -10,37 +10,23 @@ const spriteTypes = {
     Background: 4
 };
 
-const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
 let lastRenderedTime: number;
 let fps: number;
-
-/* Fix the framerate for different refresh rate screens */
-const gameFps = 60;
-const frameMinTime = (1000/60) * (60 / gameFps) - (1000/60) * 0.5;
-let lastFrameTime = 0;
-
 let frameCount: number = 0;
 let frameReference: number;
 
 let paused: boolean = false;
 
-let musicPlaying: boolean = false;
+const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-let animFrame = window.requestAnimationFrame;
+const animFrame = window.requestAnimationFrame;
+const cancelFrame = window.cancelAnimationFrame;
 
 let renderProcess: number;
-
 let levelLoading = false;
-
 let scaleFactor: number = 1;
-
 let activeStrength: number = 1;
-
-let cancelFrame = window.cancelAnimationFrame;
-
 let activeAudio: Array<ActiveAudio> = [];
-
 let gameCanvas: HTMLCanvasElement;
 let gameContext: CanvasRenderingContext2D;
 let gameRelPosition = {x: 0, y: 0};
@@ -268,17 +254,17 @@ let endText = {
     playColor: 'rgba(55,139,41,1)'
 }
 
-let spritePaths: Record<string,string> = {
-    'player': 'assets/images/player.png',
-    'shadow': 'assets/images/shadow.png',
-    'enemy': 'assets/images/enemy.png',
-    'playField': 'assets/images/playField.png',
-    'snowball': 'assets/images/snowball.png',
-    'snowballShadow': 'assets/images/snowball_shadow.png',
-    'splash': 'assets/images/splash.png',
-    'sink': 'assets/images/sink.png',
-    'puddle': 'assets/images/puddle.png',
-    'hand': 'assets/images/smallHand.png'
+let spritePaths = {
+    player: 'assets/images/player.png',
+    shadow: 'assets/images/shadow.png',
+    enemy: 'assets/images/enemy.png',
+    playField: 'assets/images/playField.png',
+    snowball: 'assets/images/snowball.png',
+    snowballShadow: 'assets/images/snowball_shadow.png',
+    splash: 'assets/images/splash.png',
+    sink: 'assets/images/sink.png',
+    puddle: 'assets/images/puddle.png',
+    hand: 'assets/images/smallHand.png'
 }
 
 let spriteImages: Record<string,HTMLImageElement> = {
@@ -400,7 +386,7 @@ const selectDifficulty = (difficulty: number) => {
     activeGame.difficulty = difficulty;    
     activeGame.level = 1;
     activeGame.enemyHealth = difficulty === 1 ? 1 : difficulty === 2 ? 3 : 4;
-    activeGame.playerHealth = 4;
+    activeGame.playerHealth = 4 - difficulty;
     levelLoad();
 }
 
@@ -431,8 +417,8 @@ const loadAudio = () => {
     hit3Audio.src = sounds.hit3;
     const deathHitAudio = new Audio();
     deathHitAudio.src = sounds.deathHit;
-    const musicAudio = new Audio();
-    musicAudio.src = sounds.music;
+    const introAltAudio = new Audio();
+    introAltAudio.src = sounds.introAlt;
 
     introAudio.oncanplaythrough = () => {
         activeGame.audioLoaded = true;
@@ -460,18 +446,13 @@ const loadImages = () => {
 }
 
 const levelLoad = () => {
-    if (activeGame.level === 1) {    
-        activeGame.loading = true;
+    if (activeGame.level === 1) {        
         endText.iterations = 0;
-
-        if (!musicPlaying) {
-            playSound(sounds.music, true, .4);
-            musicPlaying = true;
-        }
-
+        playSound(sounds.intro);
         activeGame.points = 0;
         activeGame.enemies = activeGame.difficulty === 1 ? 1 : activeGame.difficulty === 2 ? 3 : 5;
     } else {
+        playSound(sounds.introAlt);
         activeGame.enemies = activeGame.enemies + activeGame.difficulty;
     }
 
@@ -623,12 +604,7 @@ const initialPositioning = () => {
     levelLoading = true;
 }
 
-const render = (time: number) => {  
-    if(time - lastFrameTime < frameMinTime) {
-        animFrame(render);
-        return;
-    }
-
+const render = () => {    
     if (!paused) {
         frameCount = frameCount === 60 ? 0 : frameCount + 1;
         
@@ -670,10 +646,8 @@ const render = (time: number) => {
         renderHand();
         renderFPS();
     }
-
-    lastFrameTime = time;
-
-    animFrame(render);
+    
+    renderProcess = animFrame(render);
 }
 
 const renderFPS = () => {    
@@ -721,16 +695,6 @@ const renderText = () => {
         gameContext.fillText(activeStrength + "",activePlayer.x + 25,activePlayer.y + (activePlayer.height * .9));
     }
 
-    if (activeGame.loading) {
-        gameContext.font = "100 36px 'Mountains of Christmas'";
-        gameContext.strokeStyle = 'rgba(255,255,255,.7)';
-        gameContext.lineWidth = 15;
-        gameContext.strokeText('Drag the Red Kids to Throw!',gameCanvas.width / 2,gameCanvas.height / 2);
-        gameContext.fillStyle = 'rgba(255,0,0,1)';
-        gameContext.textAlign = 'center';
-        gameContext.fillText('Drag the Red Kids to Throw!',gameCanvas.width / 2,gameCanvas.height / 2);
-    }
-
     gameContext.font = "900 12px Arial";
     gameContext.fillStyle = 'rgba(0,0,255,1)';
     gameContext.textAlign = 'center';
@@ -773,20 +737,22 @@ const renderDeadSprites = () => {
 
 const renderPlayers = () => {
     if (gameSprites.players != null) {
-        const players = gameSprites.players.sort((a, b) => a.y - b.y);
-
-        for (var i = 0, len = players.length; i < len; i++) {
-            renderPlayer(players[i]);
+        let i = gameSprites.players.length;
+        
+        while(i--) {
+            const p = gameSprites.players[i];
+            renderPlayer(p);
         }
     }
 }
 
 const renderEnemies = () => {
     if (gameSprites.enemies != null) {
-        const enemies = gameSprites.enemies.sort((a, b) => a.y - b.y);
-
-        for (var i = 0, len = enemies.length; i < len; i++) {
-            renderEnemy(enemies[i]);
+        let i = gameSprites.enemies.length;
+        
+        while(i--) {
+            const p = gameSprites.enemies[i];
+            renderEnemy(p);
         }
     }
 }
@@ -1008,10 +974,8 @@ const removeSnowball = (b: Sprite, snowballs: Array<Sprite>) => {
     }
 }
 
-const snowballHit = () => {
-    const random = Math.floor((Math.random() * 4) + 1);
-
-    switch (random) {
+const snowballHit = (character: Sprite) => {
+    switch (character.value) {
         case 4:
             playSound(sounds.hit1);
             break;
@@ -1036,7 +1000,7 @@ const playerHit = (player: Sprite, count: number = 0) : void => {
     count++;
     
     if (count === 1) {        
-        snowballHit();
+        snowballHit(player);
 
         player.value--;
     }
@@ -1082,38 +1046,15 @@ const playerHit = (player: Sprite, count: number = 0) : void => {
     }
 }
 
-const stopMusic = () => {
-    let music: ActiveAudio;
-
-    if (activeAudio != null) {
-        let i = activeAudio.length;
-
-        while (i--) {
-            const audio = activeAudio[i];
-
-            if (audio.path.indexOf('music') > -1) {
-                music = audio;
-                break;
-            }
-        }
-
-        if (music != null) {
-            removeAudio(music);
-            musicPlaying = false;
-        }
-    }
-}
-
 const gameOver = () => {
     activeGame.gameOver = true;
-    stopMusic();
     enemyVictory(0);
 }
 
 const enemyHit = (enemy: Sprite) => {
     enemy.active = false;
 
-    snowballHit();
+    snowballHit(enemy);
     
     if (enemy.value > 2) {
         enemy.value--;
@@ -1322,31 +1263,21 @@ const moveSnowball = (b: Sprite,
     }
 }
 
-const playSound = (soundPath: string, loopWhilePlaying: boolean = false, volume: number = 1) => {
+const playSound = (soundPath: string) => {
     if (!paused && activeGame.soundsEnabled) {
         const audio = new Audio(soundPath);
         const id = generateIdentifier();
-        const audioRef = {
+        const audioRef: ActiveAudio = {
             id: id,
-            audio: audio,
-            path: soundPath
+            audio: audio
         };
 
         activeAudio.push(audioRef);
 
-        audio.volume = volume;
         audio.play();
     
         audio.onended = () => {
-            if (!loopWhilePlaying) {
-                removeAudio(audioRef);
-            } else {
-                if (!activeGame.gameOver) {
-                    audio.play();
-                } else {
-                    removeAudio(audioRef);
-                }
-            }
+            removeAudio(audioRef);
         };
     }
 }
@@ -1485,7 +1416,6 @@ const initialEnemyRandomization = () => {
     }
 
     levelLoading = false;
-    activeGame.loading = false;
 }
 
 const moveEnemies = () => {
@@ -1703,26 +1633,6 @@ const ctrlStartEvent = (x: number, y: number) => {
     gameMouseX = (x - gameRelPosition.x) * scaleFactor;
     gameMouseY = (y - gameRelPosition.y) * scaleFactor;
 
-    if (activeGame.gameOver) {
-        if (hoverPlay(gameMouseX,gameMouseY)) {
-            playAgain();
-        }
-    }
-    
-    if (!activeGame.gameStarted) {
-        if (hoverEasy(gameMouseX,gameMouseY)) {
-            selectDifficulty(1);
-        }
-
-        if (hoverMed(gameMouseX,gameMouseY)) {
-            selectDifficulty(2);
-        }
-
-        if (hoverHard(gameMouseX,gameMouseY)) {
-            selectDifficulty(3);
-        }
-    }
-
     if (!levelLoading) {
         increaseActiveStrength();
         activePlayer = getActivePlayer(gameMouseX,gameMouseY);
@@ -1784,6 +1694,26 @@ const ctrlEndEvent = () => {
     }
 
     activeStrength = 1;
+    
+    if (!activeGame.gameStarted) {
+        if (hoverEasy(gameMouseX,gameMouseY)) {
+            selectDifficulty(1);
+        }
+
+        if (hoverMed(gameMouseX,gameMouseY)) {
+            selectDifficulty(2);
+        }
+
+        if (hoverHard(gameMouseX,gameMouseY)) {
+            selectDifficulty(3);
+        }
+    }
+
+    if (activeGame.gameOver) {
+        if (hoverPlay(gameMouseX,gameMouseY)) {
+            playAgain();
+        }
+    }
 }
 
 const initializeControls = () => {    

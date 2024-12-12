@@ -77,7 +77,7 @@ function buildHtml() {
 }
 
 function buildAssets() {
-    return gulp.src(paths.assets, { base: './src' })
+    return gulp.src(paths.assets, { base: './src', encoding: false })
         .pipe(gulp.dest(paths.dist));
 }
 

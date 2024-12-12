@@ -14,7 +14,6 @@ export class GameSettings {
 export class ActiveAudio {
     id: string;
     audio: HTMLAudioElement;
-    path: string;
 }
 
 export class Coords {
