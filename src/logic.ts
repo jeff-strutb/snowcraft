@@ -424,11 +424,8 @@ const loadAudio = () => {
     deathHitAudio.src = sounds.deathHit;
     const introAltAudio = new Audio();
     introAltAudio.src = sounds.introAlt;
-
-    introAudio.oncanplaythrough = () => {
-        activeGame.audioLoaded = true;
-        checkLoaded();
-    };
+    activeGame.audioLoaded = true;
+    checkLoaded();
 }
 
 const loadImages = () => {
