@@ -1,0 +1,74 @@
+@import "./sass/variables";
+@import "./sass/mixins";
+@import "./sass/reset";
+
+@include keyframes(scanline) {
+    0% {
+        @include transform(translate3d(0,200000%,0));
+    }
+}
+
+@include keyframes(scanlines) {
+    0% {
+        background-position: 0 50%;
+    }
+}
+
+$primary: #1D628B;
+
+body {
+	overflow: hidden;
+	width: 100%;
+    height: 100%;
+}
+
+.shimFont {
+    color: transparent;
+    visibility: hidden;
+
+    &.christmas {
+        font-family: 'Mountains of Christmas';
+    }
+}
+
+#playField {
+    position: fixed;
+    @include cover(0,0,0,0);
+    @include transform(translate3d(0,0,0));
+    z-index: 10;
+    display: block;
+    background: $white;
+
+    canvas {
+        display: block;
+        width: 100%;
+        min-height: 100%;
+        @include allcenter(absolute);
+        cursor: none!important;
+    }
+
+    &:before {
+        content: '';
+        position: absolute;
+        z-index: -1;
+        @include cover(-1vw,-1vw,-1vw,-1vw);
+        border: $smborder $white solid;
+        border-radius: $mdsize;
+        background: rgba($white,.2);
+    }
+
+    #scanlines {
+        position: absolute;
+        @include cover(0,0,0,0);
+        pointer-events: none;
+        overflow: hidden;
+    
+        .scanlines {        
+            @include linear-gradient(to bottom, transparent 50%, rgba($black,.1) 51%);
+            background-size: 100% 4px;
+            position: absolute;
+            @include cover(0,0,0,0);
+            pointer-events: none;
+        }
+    }
+}
